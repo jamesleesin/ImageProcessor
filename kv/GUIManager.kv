@@ -1,0 +1,497 @@
+# The UI Aspect of the GUI
+
+#:import Factory kivy.factory.Factory
+#:import sm kivy.uix.screenmanager
+#:set default_font "kv/fonts/MavenPro-Regular.ttf"
+
+# Possible fonts: "fonts/Jaldi-Regular.ttf", "fonts/MavenPro-Regular.ttf", "fonts/Ubuntu-Regular.ttf"
+
+ScreenManager:
+    id: screen_manager
+    EditingScreen:
+        id: editing_screen
+        name: 'EditingScreen'
+        manager: 'screen_manager'
+
+<EditingScreen>:
+	image_filepath: "1.jpg"
+
+    # The content
+    FloatLayout:
+        id: content_view
+        size_hint: (1, 1)
+        pos_hint: {'x':0, 'y': 0}
+        # The dermoscopy view
+        FloatLayout:
+            id: dermoscopy_view
+            size_hint: (1, 1)
+            pos_hint: {'x':0, 'y': 0}
+            FloatLayout:
+                size_hint: (None, 0.98)
+                pos_hint: {'y': 0.01}
+                width: self.parent.width - 210
+                pos: (205, self.pos[1])
+                Image:
+                    source: self.parent.parent.parent.parent.image_filepath
+                    size_hint: (1, 0.2)
+                    pos_hint: {'x': 0, 'y': 0.8}
+                    keep_ratio: True
+                EditedImage:
+                    id: edited_image
+                    size_hint: (1, 0.79)
+                    pos_hint: {'x': 0, 'y': 0}
+                    keep_ratio: True
+                    on_parent: self.setup()
+                # Button to show analytics
+                Button:
+	                size_hint: (0.06, 0.06)
+	                pos_hint: {'x':0.94, 'y': 0.94}
+	                on_release: 
+	                	analytics_button_image.source = "kv/images/analytics.png"
+	                	edited_image.computeImageInfo()
+	                on_press: analytics_button_image.source = "kv/images/analytics_pressed.png"
+	                background_normal: 'kv/images/transparent_back.png'
+	                background_down: 'kv/images/transparent_back.png'
+	                Image:
+	                	id: analytics_button_image
+	                	source: "kv/images/analytics.png"
+	                	allow_stretch: True
+	                	x: self.parent.x
+	                	y: self.parent.y
+	                	size: self.parent.size
+			FloatLayout:
+				id: tools_container
+				size_hint: (None, 1)
+				width: 200
+				pos_hint: {'x': 0, 'y': 0}
+				canvas.before:
+					Color:
+						rgba: 0.6, 0.6, 0.6, 1
+					Rectangle:
+						size: self.size
+						pos: self.pos
+				Label:
+		            text: 'Tools'
+		            font_size: 22
+		            font_name: default_font
+		            halign: 'center'
+		            text_size: self.size
+		            pos_hint: {'y': 0.95}
+				ScrollView:
+					scroll_type: ['bars']
+					size_hint: (0.96, 0.93)
+					pos_hint: {'x': 0.02, 'y': 0.01}
+					GridLayout:
+						cols: 1
+						size_hint_y: None
+						height: self.minimum_height
+						spacing: 15
+						padding: 2, 0, 2, 0
+						selected_tool: "clahe"
+						FloatLayout:
+							id: clahe_tool_container
+							size_hint: (1, None)
+							height: 180
+							canvas.before:
+								Color:
+									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "clahe" else (0.4, 0.4, 0.4)
+								Rectangle:
+									pos: self.pos
+									size: self.size
+							Label:
+								text: 'CLAHE'
+								font_size: 20
+								font_name: default_font
+								text_size: self.size
+								halign: 'center'
+								pos_hint: {'x': 0, 'y': 0.85}
+							Label:
+								text: 'Clip Limit'
+								font_size: 14
+								font_name: default_font
+								size_hint: (0.5, 0.2)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.6}
+							TextInput:
+								id: clahe_cliplimit
+								size_hint: (0.45, 0.2)
+								pos_hint: {'x': 0.5, 'y': 0.6}
+								text: "4"
+								multiline: False
+								on_text: 
+									self.parent.parent.selected_tool = "clahe"
+									edited_image.changeCLAHE(clahe_cliplimit.text, clahe_slider.value, clahe_gridsize.text)
+							Label:
+								text: 'Grid Size'
+								font_size: 14
+								font_name: default_font
+								size_hint: (0.5, 0.2)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.37}
+							TextInput:
+								id: clahe_gridsize
+								size_hint: (0.45, 0.2)
+								pos_hint: {'x': 0.5, 'y': 0.37}
+								text: "8"
+								multiline: False
+								on_text: 
+									self.parent.parent.selected_tool = "clahe"
+									edited_image.changeCLAHE(clahe_cliplimit.text, clahe_slider.value, clahe_gridsize.text)
+							Label:
+								text: 'Adjustment'
+								font_size: 14
+								font_name: default_font
+								size_hint: (1, .2)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.15}
+							Slider:
+								id: clahe_slider
+								orientation: 'horizontal'
+								range: (0.01, 1)
+								value: 0.01
+								size_hint: (0.8, 0.1)
+								pos_hint: {'x': 0.1, 'y': 0.05}
+								on_value: 
+									self.parent.parent.selected_tool = "clahe"
+									edited_image.changeCLAHE(clahe_cliplimit.text, clahe_slider.value, clahe_gridsize.text)
+						FloatLayout:
+							id: blur_tool_container
+							size_hint: (1, None)
+							height: 175
+							canvas.before:
+								Color:
+									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "blur" else (0.4, 0.4, 0.4)
+								Rectangle:
+									pos: self.pos
+									size: self.size
+							Label:
+								text: 'Blur'
+								font_size: 20
+								font_name: default_font
+								text_size: self.size
+								halign: 'center'
+								pos_hint: {'x': 0, 'y': 0.85}
+							Label:
+								text: 'Kernel Size'
+								font_size: 14
+								font_name: default_font
+								size_hint: (0.5, 0.2)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.6}
+							TextInput:
+								id: blur_size
+								size_hint: (0.45, 0.2)
+								pos_hint: {'x': 0.5, 'y': 0.6}
+								text: "3"
+								multiline: False
+								on_text: 
+									self.parent.parent.selected_tool = "blur"
+									edited_image.blur(blur_size.text, blurTypeOptions.current_value)
+							Label:
+								text: 'Technique'
+								font_size: 14
+								font_name: default_font
+								size_hint: (1, 0.18)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.42}
+							GridLayout:
+								id: blurTypeOptions
+								current_value: "Box"
+								cols: 2
+								spacing: 3
+								size_hint: (1, 0.35)
+								pos_hint: {'x': 0, 'y': 0.05}
+								ToggleButton:
+									text: "Box"
+									group: 'blurtype'
+									state: 'down'
+									on_press: 
+										self.parent.parent.parent.selected_tool = "blur"
+										blurTypeOptions.current_value = "Box"
+										edited_image.blur(blur_size.text, "Box")
+								ToggleButton:
+									text: "Gaussian"
+									group: 'blurtype'
+									on_press: 
+										self.parent.parent.parent.selected_tool = "blur"
+										blurTypeOptions.current_value = "Gaussian"
+										edited_image.blur(blur_size.text, "Gaussian")
+								ToggleButton:
+									text: "Median"
+									group: 'blurtype'
+									on_press: 
+										self.parent.parent.parent.selected_tool = "blur"
+										blurTypeOptions.current_value = "Median"
+										edited_image.blur(blur_size.text, "Median")
+								ToggleButton:
+									text: "Bilateral"
+									group: 'blurtype'
+									on_press: 
+										self.parent.parent.parent.selected_tool = "blur"
+										blurTypeOptions.current_value = "Bilateral"
+										edited_image.blur(blur_size.text, "Bilateral")
+
+						FloatLayout:
+							id: colorQuantization_tool_container
+							size_hint: (1, None)
+							height: 130
+							canvas.before:
+								Color:
+									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "quant" else (0.4, 0.4, 0.4)
+								Rectangle:
+									pos: self.pos
+									size: self.size
+							Label:
+								text: 'Color Quantization'
+								font_size: 20
+								font_name: default_font
+								text_size: self.size
+								halign: 'center'
+								pos_hint: {'x': 0, 'y': 0.8}
+							Label:
+								text: 'Blur (Optional)'
+								font_size: 14
+								font_name: default_font
+								size_hint: (0.5, 0.3)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.37}
+							TextInput:
+								id: colorQuantization_blur
+								size_hint: (0.45, 0.3)
+								pos_hint: {'x': 0.5, 'y': 0.37}
+								text: "1"
+								multiline: False
+								on_text: 
+									self.parent.parent.selected_tool = "quant"
+									edited_image.colorQuantize(colorQuantization_blur.text, colorQuantization_numClusters.text)
+							Label:
+								text: '# Clusters'
+								font_size: 14
+								font_name: default_font
+								size_hint: (0.5, 0.3)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.05}
+							TextInput:
+								id: colorQuantization_numClusters
+								size_hint: (0.45, 0.3)
+								pos_hint: {'x': 0.5, 'y': 0.05}
+								text: "4"
+								multiline: False
+								on_text: 
+									self.parent.parent.selected_tool = "quant"
+									edited_image.colorQuantize(colorQuantization_blur.text, colorQuantization_numClusters.text)
+						FloatLayout:
+							id: detailInpaint_tool_container
+							size_hint: (1, None)
+							height: 130
+							canvas.before:
+								Color:
+									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "inpaint" else (0.4, 0.4, 0.4)
+								Rectangle:
+									pos: self.pos
+									size: self.size
+							Label:
+								text: 'Detail Inpainting'
+								font_size: 20
+								font_name: default_font
+								text_size: self.size
+								halign: 'center'
+								pos_hint: {'x': 0, 'y': 0.8}
+							Label:
+								text: 'Blur Size'
+								font_size: 14
+								font_name: default_font
+								size_hint: (0.5, 0.3)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.37}
+							TextInput:
+								id: detailInpaint_blur
+								size_hint: (0.45, 0.3)
+								pos_hint: {'x': 0.5, 'y': 0.37}
+								text: "4"
+								multiline: False
+								on_text: 
+									self.parent.parent.selected_tool = "inpaint"
+									edited_image.detailInpaint(detailInpaint_blur.text, detailInpaint_thresh.text)
+							Label:
+								text: 'Threshold'
+								font_size: 14
+								font_name: default_font
+								size_hint: (0.5, 0.3)
+								text_size: self.size
+								halign: 'center'
+								valign: 'middle'
+								pos_hint: {'x': 0, 'y': 0.05}
+							TextInput:
+								id: detailInpaint_thresh
+								size_hint: (0.45, 0.3)
+								pos_hint: {'x': 0.5, 'y': 0.05}
+								text: "8"
+								multiline: False
+								on_text: 
+									self.parent.parent.selected_tool = "inpaint"
+									edited_image.detailInpaint(detailInpaint_blur.text, detailInpaint_thresh.text)
+
+
+########################################################################
+########################### ADDITIONAL CLASSES #########################
+########################################################################
+
+<EditedImage>:
+    source: ""
+
+<ImageInfo>:
+	imageShape: image_shape_text
+	imageType: image_type_text
+	bMinMax: bMinMax_text
+	gMinMax: gMinMax_text
+	rMinMax: rMinMax_text
+	bMeanStdDev: bMeanStdDev_text
+	gMeanStdDev: gMeanStdDev_text
+	rMeanStdDev: rMeanStdDev_text
+	histogramImage: histogram_image
+
+	title: 'Image Information'
+	size_hint: (.8, .8)
+	FloatLayout:
+		size_hint: (1,1)
+		pos_hint: {'x': 0, 'y': 0}
+		Label:
+			size_hint: (0.4, 1)
+			pos_hint: {'x': 0.6, 'y':0.8}
+			font_size: 14
+			font_name: default_font
+			text_size: self.size
+			halign: 'center'
+			text: "Histograms"
+		Image:
+			id: histogram_image
+			size_hint: (0.4, 0.6)
+			pos_hint: {'x': 0.6, 'y': 0.2}
+			source: "hist.png"
+	        keep_ratio: True
+		GridLayout:
+			cols: 3
+			size_hint: (0.6,1)
+			pos_hint: {'x': 0, 'y': 0}
+			Label:
+				text: 'General:'
+				font_size: 14
+				font_name: default_font
+			Label:
+				id: image_shape_label
+				text: 'Image Shape:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: image_shape_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+			Label:
+				text: ''
+			Label:
+				id: image_type_label
+				text: 'Image Type:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: image_type_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+			Label:
+				text: 'Channel Red:'
+				font_size: 14
+				font_name: default_font
+			Label:
+				id: rMinMax_label
+				text: 'Min/Max:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: rMinMax_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+			Label:
+				text: ''
+			Label:
+				id: rMeanStdDev_label
+				text: 'Mean/Std. Dev.:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: rMeanStdDev_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+			Label:
+				text: 'Channel Green:'
+				font_size: 14
+				font_name: default_font
+			Label:
+				id: gMinMax_label
+				text: 'Green Min/Max:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: gMinMax_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+			Label:
+				text: ''
+			Label:
+				id: gMeanStdDev_label
+				text: 'Mean/Std. Dev.:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: gMeanStdDev_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+			Label:
+				text: 'Channel Blue:'
+				font_size: 14
+				font_name: default_font
+			Label:
+				id: bMinMax_label
+				text: 'Blue Min/Max:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: bMinMax_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+			Label:
+				text: ''
+			Label:
+				id: bMeanStdDev_label
+				text: 'Mean/Std. Dev.:'
+				font_size: 12
+				font_name: default_font
+			Label:
+				id: bMeanStdDev_text
+				text: ''
+				font_size: 12
+				font_name: default_font
+
