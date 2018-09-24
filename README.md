@@ -2,6 +2,7 @@
 Image processing functions in an intuitive GUI
 
 Current Tools:
+
 CLAHE (Contrast Limited Adaptive Histogram Equalization):
 Parameters: Clip Limit, Grid Size
 
