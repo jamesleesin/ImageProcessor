@@ -31,6 +31,7 @@ import csv
 import time
 import shutil
 import math
+import threading
 
 # For image from memory
 from io import StringIO
@@ -43,11 +44,59 @@ class EditingScreen(Screen):
 	Window.clearcolor = (0.5, 0.5, 0.5, 1) # Background color
 	tool_label_text = ObjectProperty(None)
 	image_filepath = StringProperty(None)
+	status = ObjectProperty()
+	edited_image = ObjectProperty()
+
+	loadfile = ObjectProperty()
+	saveFile = ObjectProperty()
 
 	# Initialize the analysis screen
 	def __init__(self, **kwargs):
 		super(EditingScreen, self).__init__(**kwargs)
 
+	########## Loading and saving files ###################
+	def saveFile(self, path, filename):
+		currentImage = self.edited_image.processed_image
+		if (currentImage.size > 0):
+			cv2.imwrite(os.path.join(path,filename), cv2.flip(currentImage, 0))
+			self.status.text = "Saved image to " + os.path.join(path,filename)
+		else:
+			self.status.text = "Failed to save image." 
+		self.dismiss_popup()
+
+	# Just copy a version of the file into a folder
+	def openFile(self, path, filename):
+		if (self.edited_image != None):
+			self.image_filepath = os.path.join(path,filename[0])
+			self.edited_image.setup()
+			self.status.text = "Opened " + self.image_filepath
+		else:
+			self.status.text = "Failed to open image."
+		self.dismiss_popup()
+
+	def dismiss_popup(self):
+		self._popup.dismiss()
+
+	def show_load(self):
+		content = Factory.LoadDialog(load=self.openFile, cancel=self.dismiss_popup)
+		self._popup = Popup(title="Load file", content=content, size_hint=(0.8,0.8))
+		self._popup.open()
+
+	def show_save(self):
+		content = Factory.SaveDialog(save=self.saveFile, cancel=self.dismiss_popup)
+		self._popup = Popup(title="Save file", content=content, size_hint=(0.8,0.8))
+		self._popup.open()
+
+	class LoadDialog(FloatLayout):
+		load = ObjectProperty(None)
+		cancel = ObjectProperty(None)
+
+	class SaveDialog(FloatLayout):
+		save = ObjectProperty(None)
+		text_input = ObjectProperty(None)
+		cancel = ObjectProperty(None)
+
+	############## Image info popup class #################
 	class ImageInfo(Popup):
 		imageShape = ObjectProperty()
 		imageType = ObjectProperty()
@@ -78,13 +127,18 @@ class EditingScreen(Screen):
 		memory_data = ObjectProperty(None)
 		orig_image = None
 		processed_image = None
+		status_text = ObjectProperty(None)
+
 		def __init(self, **kwargs):
 			super(EditedImage, self).__init__(**kwargs)
 		def setup(self):
-			# Read in the image. The image is read in flipped, so flip it back
-			self.orig_image = cv2.flip(cv2.imread(self.parent.parent.parent.parent.image_filepath), 0)
-			self.updateImage(self.orig_image)
+			if (self.parent.parent.parent.parent.image_filepath != ""):
+				# Read in the image. The image is read in flipped, so flip it back
+				self.orig_image = cv2.flip(cv2.imread(self.parent.parent.parent.parent.image_filepath), 0)
+				self.updateImage(self.orig_image)
+				self.status_text = self.parent.parent.parent.parent.status
 		# Convert image to a string then to a texture and display on image canvas
+		@mainthread
 		def updateImage(self, im):
 			self.processed_image = im
 			data = im.tostring()
@@ -93,10 +147,70 @@ class EditingScreen(Screen):
 			with self.canvas:
 				self.texture = image_texture
 
-		############ Image Info ######################
+		# Update status text with a thread
+		def updateStatusText(self, text):
+			self.status_text.text = text
+
+		# Utility function, set the status text to Ready
+		def setStatusReady(self):
+			updateText = "Ready."
+			updateStatusThread = threading.Thread(target=self.updateStatusText, args=(updateText,))
+			updateStatusThread.start()
+
+		############ Functions that run the image processing algorithms on threads ###########
+		def computeImageInfo(self):
+			updateText = "Displaying Basic Image Information"
+			updateStatusThread = threading.Thread(target=self.updateStatusText, args=(updateText,))
+			updateStatusThread.start()
+			computeImageInfoThread = threading.Thread(target=self.runComputeImageInfo)
+			computeImageInfoThread.start()
+
+		def changeCLAHE(self, cl, adj, gs):
+			if (not (cl == "" or gs == "")):
+				if (isNumber(cl) and isNumber(adj) and isNumber(gs)):
+					updateText = "Performing CLAHE: clipSize=" + str(cl) + ", adj=" + str(int(adj * 100)/100.0) + ", gridSize=(" + str(gs) + "," + str(gs) + ")"
+					updateStatusThread = threading.Thread(target=self.updateStatusText, args=(updateText,))
+					updateStatusThread.start()
+					claheThread = threading.Thread(target=self.runCLAHE, args=(cl, adj, gs,))
+					claheThread.start()
+				else:
+					self.updateStatusText("Could not perform CLAHE. Values must be valid numbers.")
+
+		def blur(self, ks, alg):
+			if (ks != ""):
+				if (isNumber(ks) and int(ks)%2==1 and int(ks)>0):
+					updateText = "Performing Blur: kernelSize=(" + ks + "," + ks + ") with algorithm " + alg
+					updateStatusThread = threading.Thread(target=self.updateStatusText, args=(updateText,))
+					updateStatusThread.start()
+					blurThread = threading.Thread(target=self.runBlur, args=(ks, alg,))
+					blurThread.start()
+				else:
+					self.updateStatusText("Could not perform Blur. Blur kernel size must be a positive odd integer value.")
+
+		def colorQuantize(self, ks, nc):
+			if (not (ks == "" or nc == "")):
+				if (isNumber(ks) and int(ks)%2==1 and int(ks)>0 and isNumber(nc) and int(nc)>0):
+					updateText = "Performing Color Quantization: kernelSize=(" + ks + "," + ks + "), clusters=" + nc
+					updateStatusThread = threading.Thread(target=self.updateStatusText, args=(updateText,))
+					updateStatusThread.start()
+					quantThread = threading.Thread(target=self.runColorQuantize, args=(ks,nc,))
+					quantThread.start()
+				else:
+					self.updateStatusText("Could not perform Color Quantization. Blur kernel size must be a positive odd integer value, and # clusters must be > 0.")
+
+		def detailInpaint(self, ks, dil):
+			if (isNumber(ks) and int(ks)%2==1 and int(ks)>0 and isNumber(dil) and int(dil)>0):
+				updateText = "Performing detail inpainting: kernelSize=(" + ks + ", " + ks + "), dilationSize=" + dil
+				updateStatusThread = threading.Thread(target=self.updateStatusText, args=(updateText,))
+				updateStatusThread.start()
+				detailInpaintThread = threading.Thread(target=self.runDetailInpaint, args=(ks,dil,))
+				detailInpaintThread.start()
+			else:
+				self.updateStatusText("Could not inpaint on details. Kernel Size must be a positive odd integer value, and dilation must be positive.")
+
+		############ Image Processing Algorithms ###################	
 		# Calculate some basic image information such as min/max/mean etc.
 		def computeImageInfo(self):
-			print("Displaying Basic Image Information")
 			image = self.processed_image
 			if (len(image.shape)<3):
 				# Grayscale
@@ -143,76 +257,73 @@ class EditingScreen(Screen):
 			self.imageInfo = Factory.ImageInfo()
 			self.imageInfo.populate(info)
 			self.imageInfo.open()
+			self.setStatusReady()
 
-
-
-		############ Image Processing Algorithms ###################	
 		# Contrast Limited Adaptive Histogram Equilization. Takes in a clip limit, adjustment value, and a gridsize.
-		def changeCLAHE(self, cl, adj, gs):
-			if (not (cl == "" or gs == "")):
-				if (isNumber(cl) and isNumber(adj) and isNumber(gs)):
-					print("Performing CLAHE: clipSize=" + str(cl) + ", adj=" + str(int(adj * 100)/100.0) + ", gridSize=(" + str(gs) + "," + str(gs) + ")")
-					# Process the inputs
-					clipLimit = float(cl) if float(cl) > 0.01 else 0.01
-					gridSize = int(gs) if int(gs) > 0 and int(gs) < 20 else 1
-					adjustment = float(adj)
-					image = cv2.cvtColor(self.orig_image, cv2.COLOR_BGR2LAB)
-					l, a, b = cv2.split(image)
-					# Apply CLAHE to lightness channel.
-					# I think with a tile size of (1,1) it is basically contrast adjustment
-					clahe = cv2.createCLAHE(clipLimit * adjustment, tileGridSize=(gridSize,gridSize))
-					cl = clahe.apply(l)
-					image = cv2.merge((cl, a, b))
-					image = cv2.cvtColor(image, cv2.COLOR_LAB2BGR)
-					self.updateImage(image)
-				else:
-					print("Could not perform CLAHE. Values must be valid numbers.")
+		def runCLAHE(self, cl, adj, gs):
+			# Process the inputs
+			clipLimit = float(cl) if float(cl) > 0.01 else 0.01
+			gridSize = int(gs) if int(gs) > 0 and int(gs) < 20 else 1
+			adjustment = float(adj)
+			image = cv2.cvtColor(self.orig_image, cv2.COLOR_BGR2LAB)
+			l, a, b = cv2.split(image)
+			# Apply CLAHE to lightness channel.
+			# I think with a tile size of (1,1) it is basically contrast adjustment
+			clahe = cv2.createCLAHE(clipLimit * adjustment, tileGridSize=(gridSize,gridSize))
+			cl = clahe.apply(l)
+			image = cv2.merge((cl, a, b))
+			image = cv2.cvtColor(image, cv2.COLOR_LAB2BGR)
+			self.updateImage(image)
+			self.setStatusReady()
 
 		# Blur. Parameters: kernel size and algorithm
-		def blur(self, ks, alg):
-			if (ks != ""):
-				if (isNumber(ks) and int(ks)%2==1 and int(ks)>0):
-					print("Performing Blur: kernelSize=(" + ks + "," + ks + ") with algorithm " + alg)
-					kernelSize = int(ks)
-					image = None
-					if (alg == "Box"):
-						image = cv2.blur(self.orig_image,(kernelSize, kernelSize))
-					elif (alg == "Gaussian"):
-						image = cv2.GaussianBlur(self.orig_image,(kernelSize, kernelSize), 0)
-					elif (alg == "Median"):
-						image = cv2.medianBlur(self.orig_image, kernelSize)
-					elif (alg == "Bilateral"):
-						image = cv2.bilateralFilter(self.orig_image, kernelSize, -1, -1)
-					self.updateImage(image)
-				else:
-					print("Could not perform Blur. Blur kernel size must be a positive odd integer value.")
+		def runBlur(self, ks, alg):
+			kernelSize = int(ks)
+			image = None
+			if (alg == "Box"):
+				image = cv2.blur(self.orig_image,(kernelSize, kernelSize))
+			elif (alg == "Gaussian"):
+				image = cv2.GaussianBlur(self.orig_image,(kernelSize, kernelSize), 0)
+			elif (alg == "Median"):
+				image = cv2.medianBlur(self.orig_image, kernelSize)
+			elif (alg == "Bilateral"):
+				image = cv2.bilateralFilter(self.orig_image, kernelSize, -1, -1)
+			self.updateImage(image)
+			self.setStatusReady()
 
 		# Color quantization. Optional blur before running the quantization, with numclusters=nc
-		def colorQuantize(self, ks, nc):
-			if (not (ks == "" or nc == "")):
-				if (isNumber(ks) and int(ks)%2==1 and isNumber(nc) and int(nc)>0):
-					print("Performing Color Quantization: kernelSize=(" + ks + "," + ks + "), clusters=" + nc)
-					image = self.orig_image
-					# Optional blur before quantizing
-					if (int(ks)>0):
-						image = cv2.medianBlur(image, int(ks))
+		def runColorQuantize(self, ks, nc):
+			image = self.orig_image
+			# Optional blur before quantizing
+			if (int(ks)>0):
+				image = cv2.medianBlur(image, int(ks))
 
-					image = np.float32(image)
-					(h, w) = image.shape[:2]
-					image = image.reshape((image.shape[0]*image.shape[1], 3))
-					# Apply kmeans with the specified number of clusters
-					criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-					ret, label, center = cv2.kmeans(image,int(nc),None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
-					center = np.uint8(center)
-					quant = center[label.flatten()]
-					quant = quant.reshape((h,w,3))
-					self.updateImage(quant)
-				else:
-					print("Could not quantize. Number of clusters must be > 0")
+			image = np.float32(image)
+			(h, w) = image.shape[:2]
+			image = image.reshape((image.shape[0]*image.shape[1], 3))
+			# Apply kmeans with the specified number of clusters
+			criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+			ret, label, center = cv2.kmeans(image,int(nc),None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
+			center = np.uint8(center)
+			quant = center[label.flatten()]
+			quant = quant.reshape((h,w,3))
+			self.updateImage(quant)
+			self.setStatusReady()
 
-		# Inpainting of details (ie. hair removal). Takes in a blur kernel size and a threshold.
-		def detailInpaint(self, ks, thr):
-			pass
+		# Inpainting of details (ie. hair removal). Takes in a blur kernel size and a dilation size.
+		def runDetailInpaint(self, ks, dil):
+			# Blur a copy of the image, then subtract a copy of it from the image
+			image = self.orig_image
+			blurred = cv2.medianBlur(image, int(ks))
+			diff = cv2.subtract(blurred, image)
+			# Convert to gray
+			grayDiff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+			ret3, thr = cv2.threshold(grayDiff, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+			dilationConv = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2*int(dil)+1, 2*int(dil)+1), (int(dil), int(dil)))
+			mask = cv2.dilate(thr, dilationConv, 1)
+			res = cv2.inpaint(image, mask, 3, cv2.INPAINT_TELEA)
+			self.updateImage(res)
+			self.setStatusReady()
 
 # Check to see if a text input is a number
 def isNumber(s):

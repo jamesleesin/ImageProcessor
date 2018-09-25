@@ -14,37 +14,68 @@ ScreenManager:
         manager: 'screen_manager'
 
 <EditingScreen>:
-	image_filepath: "1.jpg"
+	image_filepath: ""
+	status: status_text
+	edited_image: edited_image
 
     # The content
     FloatLayout:
         id: content_view
         size_hint: (1, 1)
         pos_hint: {'x':0, 'y': 0}
-        # The dermoscopy view
         FloatLayout:
-            id: dermoscopy_view
-            size_hint: (1, 1)
-            pos_hint: {'x':0, 'y': 0}
+        	size_hint: (1, None)
+        	height: 25
+        	pos_hint: {'x': 0, 'y': 0}
+        	canvas.before:
+				Color:
+					rgb: 0.8, 0.8, 0.8
+				Rectangle:
+					size: self.size
+					pos: self.pos
+	        Label:
+	        	id: status_text
+	        	size_hint: (0.99, None)
+	        	height: 25
+	        	pos_hint: {'x': 0.01, 'y': 0}
+				text: "Ready." 
+				text_size: self.size
+				font_size: 13
+				valign: 'middle'
+				font_name: default_font
+				color: 0.1, 0.1, 0.1
+        FloatLayout:
+            size_hint: (1, None)
+            height: self.parent.height - 25
+            pos: (0, 25)
             FloatLayout:
                 size_hint: (None, 0.98)
                 pos_hint: {'y': 0.01}
                 width: self.parent.width - 210
                 pos: (205, self.pos[1])
                 Image:
-                    source: self.parent.parent.parent.parent.image_filepath
+                    source: self.parent.parent.parent.parent.image_filepath if self.parent.parent.parent.parent.image_filepath != "" else "kv/images/transparent_back.png"
                     size_hint: (1, 0.2)
                     pos_hint: {'x': 0, 'y': 0.8}
                     keep_ratio: True
                 EditedImage:
                     id: edited_image
-                    size_hint: (1, 0.79)
+                    size_hint: (1, 0.79) if self.parent.parent.parent.parent.image_filepath != "" else (0,0)
                     pos_hint: {'x': 0, 'y': 0}
                     keep_ratio: True
                     on_parent: self.setup()
+                Label:
+		        	size_hint: (1, 1)
+		        	pos_hint: {'x': 0, 'y': 0}
+					text: "Load an image" if self.parent.parent.parent.parent.image_filepath == "" else ""
+					text_size: self.size
+					font_size: 30
+					valign: 'middle'
+					halign: 'center'
+					font_name: default_font
                 # Button to show analytics
                 Button:
-	                size_hint: (0.06, 0.06)
+	                size_hint: (0.06, 0.06) if self.parent.parent.parent.parent.image_filepath != "" else (0,0)
 	                pos_hint: {'x':0.94, 'y': 0.94}
 	                on_release: 
 	                	analytics_button_image.source = "kv/images/analytics.png"
@@ -70,16 +101,42 @@ ScreenManager:
 					Rectangle:
 						size: self.size
 						pos: self.pos
-				Label:
-		            text: 'Tools'
-		            font_size: 22
-		            font_name: default_font
-		            halign: 'center'
-		            text_size: self.size
+				BoxLayout:
+		            orientation: 'horizontal'
+		            size_hint: (1, 0.05)
 		            pos_hint: {'y': 0.95}
+		            padding: 0, 5, 0, 0
+			        Button:
+			        	background_normal: 'kv/images/transparent_back.png'
+		                background_down: 'kv/images/transparent_back.png'
+		                on_press: openfile_button_image.source = "kv/images/open_icon.png"
+		                on_release: 
+		                	openfile_button_image.source = "kv/images/open_icon.png"
+	                		self.parent.parent.parent.parent.parent.show_load()
+		                Image:
+		                	id: openfile_button_image
+		                	source: "kv/images/open_icon.png"
+		                	allow_stretch: True
+		                	x: self.parent.x
+		                	y: self.parent.y
+		                	size: self.parent.size
+		        	Button:
+			        	background_normal: 'kv/images/transparent_back.png'
+		                background_down: 'kv/images/transparent_back.png'
+		                on_press: savefile_button_image.source = "kv/images/save_icon.png"
+		                on_release: 
+		                	savefile_button_image.source = "kv/images/save_icon.png"
+	                		self.parent.parent.parent.parent.parent.show_save()
+		                Image:
+		                	id: savefile_button_image
+		                	source: "kv/images/save_icon.png"
+		                	allow_stretch: True
+		                	x: self.parent.x
+		                	y: self.parent.y
+		                	size: self.parent.size
 				ScrollView:
 					scroll_type: ['bars']
-					size_hint: (0.96, 0.93)
+					size_hint: (0.96, 0.93) if self.parent.parent.parent.parent.image_filepath != "" else (0,0)
 					pos_hint: {'x': 0.02, 'y': 0.01}
 					GridLayout:
 						cols: 1
@@ -91,7 +148,7 @@ ScreenManager:
 						FloatLayout:
 							id: clahe_tool_container
 							size_hint: (1, None)
-							height: 180
+							height: 230
 							canvas.before:
 								Color:
 									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "clahe" else (0.4, 0.4, 0.4)
@@ -104,43 +161,39 @@ ScreenManager:
 								font_name: default_font
 								text_size: self.size
 								halign: 'center'
-								pos_hint: {'x': 0, 'y': 0.85}
+								pos_hint: {'x': 0, 'y': 0.88}
 							Label:
 								text: 'Clip Limit'
 								font_size: 14
 								font_name: default_font
-								size_hint: (0.5, 0.2)
+								size_hint: (0.5, 0.15)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.6}
+								pos_hint: {'x': 0, 'y': 0.69}
 							TextInput:
 								id: clahe_cliplimit
-								size_hint: (0.45, 0.2)
-								pos_hint: {'x': 0.5, 'y': 0.6}
+								size_hint: (0.45, 0.15)
+								pos_hint: {'x': 0.5, 'y': 0.69}
 								text: "4"
 								multiline: False
-								on_text: 
-									self.parent.parent.selected_tool = "clahe"
-									edited_image.changeCLAHE(clahe_cliplimit.text, clahe_slider.value, clahe_gridsize.text)
+								on_text: self.parent.parent.selected_tool = "clahe"
 							Label:
 								text: 'Grid Size'
 								font_size: 14
 								font_name: default_font
-								size_hint: (0.5, 0.2)
+								size_hint: (0.5, 0.15)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.37}
+								pos_hint: {'x': 0, 'y': 0.48}
 							TextInput:
 								id: clahe_gridsize
-								size_hint: (0.45, 0.2)
-								pos_hint: {'x': 0.5, 'y': 0.37}
+								size_hint: (0.45, 0.15)
+								pos_hint: {'x': 0.5, 'y': 0.48}
 								text: "8"
 								multiline: False
-								on_text: 
-									self.parent.parent.selected_tool = "clahe"
-									edited_image.changeCLAHE(clahe_cliplimit.text, clahe_slider.value, clahe_gridsize.text)
+								on_text: self.parent.parent.selected_tool = "clahe"
 							Label:
 								text: 'Adjustment'
 								font_size: 14
@@ -149,21 +202,34 @@ ScreenManager:
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.15}
+								pos_hint: {'x': 0, 'y': 0.28}
 							Slider:
 								id: clahe_slider
 								orientation: 'horizontal'
 								range: (0.01, 1)
 								value: 0.01
 								size_hint: (0.8, 0.1)
-								pos_hint: {'x': 0.1, 'y': 0.05}
+								pos_hint: {'x': 0.1, 'y': 0.2}
 								on_value: 
 									self.parent.parent.selected_tool = "clahe"
 									edited_image.changeCLAHE(clahe_cliplimit.text, clahe_slider.value, clahe_gridsize.text)
+							Button:
+								size_hint: (0.45, None)
+								height: 28
+				                pos_hint: {'x':0.5, 'y': 0.05}
+				                on_release: 
+				                	self.parent.parent.selected_tool = "clahe"
+				                	edited_image.changeCLAHE(clahe_cliplimit.text, clahe_slider.value, clahe_gridsize.text)
+				                font_size: 14
+								font_name: default_font
+								text_size: self.size
+								text: "OK"
+								valign: 'middle'
+								halign: 'center'
 						FloatLayout:
 							id: blur_tool_container
 							size_hint: (1, None)
-							height: 175
+							height: 210
 							canvas.before:
 								Color:
 									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "blur" else (0.4, 0.4, 0.4)
@@ -176,41 +242,39 @@ ScreenManager:
 								font_name: default_font
 								text_size: self.size
 								halign: 'center'
-								pos_hint: {'x': 0, 'y': 0.85}
+								pos_hint: {'x': 0, 'y': 0.86}
 							Label:
 								text: 'Kernel Size'
 								font_size: 14
 								font_name: default_font
-								size_hint: (0.5, 0.2)
+								size_hint: (0.5, 0.15)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.6}
+								pos_hint: {'x': 0, 'y': 0.69}
 							TextInput:
 								id: blur_size
-								size_hint: (0.45, 0.2)
-								pos_hint: {'x': 0.5, 'y': 0.6}
+								size_hint: (0.45, 0.15)
+								pos_hint: {'x': 0.5, 'y': 0.69}
 								text: "3"
 								multiline: False
-								on_text: 
-									self.parent.parent.selected_tool = "blur"
-									edited_image.blur(blur_size.text, blurTypeOptions.current_value)
+								on_text: self.parent.parent.selected_tool = "blur"
 							Label:
 								text: 'Technique'
 								font_size: 14
 								font_name: default_font
-								size_hint: (1, 0.18)
+								size_hint: (1, 0.15)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.42}
+								pos_hint: {'x': 0, 'y': 0.52}
 							GridLayout:
 								id: blurTypeOptions
 								current_value: "Box"
 								cols: 2
 								spacing: 3
-								size_hint: (1, 0.35)
-								pos_hint: {'x': 0, 'y': 0.05}
+								size_hint: (1, 0.31)
+								pos_hint: {'x': 0, 'y': 0.2}
 								ToggleButton:
 									text: "Box"
 									group: 'blurtype'
@@ -218,33 +282,42 @@ ScreenManager:
 									on_press: 
 										self.parent.parent.parent.selected_tool = "blur"
 										blurTypeOptions.current_value = "Box"
-										edited_image.blur(blur_size.text, "Box")
 								ToggleButton:
 									text: "Gaussian"
 									group: 'blurtype'
 									on_press: 
 										self.parent.parent.parent.selected_tool = "blur"
 										blurTypeOptions.current_value = "Gaussian"
-										edited_image.blur(blur_size.text, "Gaussian")
 								ToggleButton:
 									text: "Median"
 									group: 'blurtype'
 									on_press: 
 										self.parent.parent.parent.selected_tool = "blur"
 										blurTypeOptions.current_value = "Median"
-										edited_image.blur(blur_size.text, "Median")
 								ToggleButton:
 									text: "Bilateral"
 									group: 'blurtype'
 									on_press: 
 										self.parent.parent.parent.selected_tool = "blur"
 										blurTypeOptions.current_value = "Bilateral"
-										edited_image.blur(blur_size.text, "Bilateral")
+							Button:
+								size_hint: (0.45, None)
+								height: 28
+				                pos_hint: {'x':0.5, 'y': 0.05}
+				                on_release: 
+				                	self.parent.parent.selected_tool = "blur"
+				                	edited_image.blur(blur_size.text, blurTypeOptions.current_value)
+				                font_size: 14
+								font_name: default_font
+								text_size: self.size
+								text: "OK"
+								valign: 'middle'
+								halign: 'center'
 
 						FloatLayout:
 							id: colorQuantization_tool_container
 							size_hint: (1, None)
-							height: 130
+							height: 160
 							canvas.before:
 								Color:
 									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "quant" else (0.4, 0.4, 0.4)
@@ -257,47 +330,56 @@ ScreenManager:
 								font_name: default_font
 								text_size: self.size
 								halign: 'center'
-								pos_hint: {'x': 0, 'y': 0.8}
+								pos_hint: {'x': 0, 'y': 0.82}
 							Label:
 								text: 'Blur (Optional)'
 								font_size: 14
 								font_name: default_font
-								size_hint: (0.5, 0.3)
+								size_hint: (0.5, 0.2)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.37}
+								pos_hint: {'x': 0, 'y': 0.52}
 							TextInput:
 								id: colorQuantization_blur
-								size_hint: (0.45, 0.3)
-								pos_hint: {'x': 0.5, 'y': 0.37}
+								size_hint: (0.45, 0.2)
+								pos_hint: {'x': 0.5, 'y': 0.52}
 								text: "1"
 								multiline: False
-								on_text: 
-									self.parent.parent.selected_tool = "quant"
-									edited_image.colorQuantize(colorQuantization_blur.text, colorQuantization_numClusters.text)
+								on_text: self.parent.parent.selected_tool = "quant"
 							Label:
 								text: '# Clusters'
 								font_size: 14
 								font_name: default_font
-								size_hint: (0.5, 0.3)
+								size_hint: (0.5, 0.2)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.05}
+								pos_hint: {'x': 0, 'y': 0.28}
 							TextInput:
 								id: colorQuantization_numClusters
-								size_hint: (0.45, 0.3)
-								pos_hint: {'x': 0.5, 'y': 0.05}
+								size_hint: (0.45, 0.2)
+								pos_hint: {'x': 0.5, 'y': 0.28}
 								text: "4"
 								multiline: False
-								on_text: 
-									self.parent.parent.selected_tool = "quant"
-									edited_image.colorQuantize(colorQuantization_blur.text, colorQuantization_numClusters.text)
+								on_text: self.parent.parent.selected_tool = "quant"
+							Button:
+								size_hint: (0.45, None)
+								height: 28
+				                pos_hint: {'x':0.5, 'y': 0.05}
+				                on_release: 
+				                	self.parent.parent.selected_tool = "quant"
+				                	edited_image.colorQuantize(colorQuantization_blur.text, colorQuantization_numClusters.text)
+				                font_size: 14
+								font_name: default_font
+								text_size: self.size
+								text: "OK"
+								valign: 'middle'
+								halign: 'center'
 						FloatLayout:
 							id: detailInpaint_tool_container
 							size_hint: (1, None)
-							height: 130
+							height: 160
 							canvas.before:
 								Color:
 									rgb: (0.5, 0.6, 0.8) if self.parent.selected_tool == "inpaint" else (0.4, 0.4, 0.4)
@@ -310,43 +392,52 @@ ScreenManager:
 								font_name: default_font
 								text_size: self.size
 								halign: 'center'
-								pos_hint: {'x': 0, 'y': 0.8}
+								pos_hint: {'x': 0, 'y': 0.82}
 							Label:
 								text: 'Blur Size'
 								font_size: 14
 								font_name: default_font
-								size_hint: (0.5, 0.3)
+								size_hint: (0.5, 0.2)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.37}
+								pos_hint: {'x': 0, 'y': 0.52}
 							TextInput:
 								id: detailInpaint_blur
-								size_hint: (0.45, 0.3)
-								pos_hint: {'x': 0.5, 'y': 0.37}
-								text: "4"
+								size_hint: (0.45, 0.2)
+								pos_hint: {'x': 0.5, 'y': 0.52}
+								text: "9"
 								multiline: False
-								on_text: 
-									self.parent.parent.selected_tool = "inpaint"
-									edited_image.detailInpaint(detailInpaint_blur.text, detailInpaint_thresh.text)
+								on_text: self.parent.parent.selected_tool = "inpaint"
 							Label:
-								text: 'Threshold'
+								text: 'Dilation'
 								font_size: 14
 								font_name: default_font
-								size_hint: (0.5, 0.3)
+								size_hint: (0.5, 0.2)
 								text_size: self.size
 								halign: 'center'
 								valign: 'middle'
-								pos_hint: {'x': 0, 'y': 0.05}
+								pos_hint: {'x': 0, 'y': 0.28}
 							TextInput:
-								id: detailInpaint_thresh
-								size_hint: (0.45, 0.3)
-								pos_hint: {'x': 0.5, 'y': 0.05}
-								text: "8"
+								id: detailInpaint_dilation
+								size_hint: (0.45, 0.2)
+								pos_hint: {'x': 0.5, 'y': 0.28}
+								text: "1"
 								multiline: False
-								on_text: 
-									self.parent.parent.selected_tool = "inpaint"
-									edited_image.detailInpaint(detailInpaint_blur.text, detailInpaint_thresh.text)
+								on_text: self.parent.parent.selected_tool = "inpaint"
+							Button:
+								size_hint: (0.45, None)
+								height: 28
+				                pos_hint: {'x':0.5, 'y': 0.05}
+				                on_release: 
+				                	self.parent.parent.selected_tool = "inpaint"
+				                	edited_image.detailInpaint(detailInpaint_blur.text, detailInpaint_dilation.text)
+				                font_size: 14
+								font_name: default_font
+								text_size: self.size
+								text: "OK"
+								valign: 'middle'
+								halign: 'center'
 
 
 ########################################################################
@@ -355,6 +446,47 @@ ScreenManager:
 
 <EditedImage>:
     source: ""
+
+<LoadDialog>:
+	BoxLayout:
+		size: root.size
+		pos: root.pos
+		orientation: 'vertical'
+		FileChooserListView:
+			id: filechooser
+		BoxLayout:
+			size_hint_y: None
+			height: 30
+			Button:
+				text: "Cancel"
+				on_release: root.cancel()
+			Button:
+				text: "Load"
+				on_release: root.load(filechooser.path, filechooser.selection)
+
+<SaveDialog>:
+	text_input: text_input
+	BoxLayout:
+		size: root.size
+		pos: root.pos
+		orientation: 'vertical'
+		FileChooserListView:
+			id: filechooser
+			on_selection: text_input.text = self.selection and self.selection[0] or ''
+		TextInput:
+			id: text_input
+			size_hint_y: None
+			height: 30
+			multiline: False
+		BoxLayout:
+			size_hint_y: None
+			height: 30
+			Button:
+				text: "Cancel"
+				on_release: root.cancel()
+			Button:
+				text: "Save"
+				on_release: root.save(filechooser.path, text_input.text)
 
 <ImageInfo>:
 	imageShape: image_shape_text
