@@ -57,7 +57,7 @@ class EditingScreen(Screen):
 	########## Loading and saving files ###################
 	def saveFile(self, path, filename):
 		currentImage = self.edited_image.processed_image
-		if (currentImage.size > 0):
+		if (currentImage != None and currentImage.size > 0):
 			cv2.imwrite(os.path.join(path,filename), cv2.flip(currentImage, 0))
 			self.status.text = "Saved image to " + os.path.join(path,filename)
 		else:
@@ -96,6 +96,41 @@ class EditingScreen(Screen):
 		text_input = ObjectProperty(None)
 		cancel = ObjectProperty(None)
 
+	############## Undo and Redo ######################
+	def undoOperation(self):
+		if (self.edited_image.image_stack_index > 0):
+			# Can keep undoing
+			self.edited_image.image_stack_index -= 1
+			self.edited_image.updateImage(self.edited_image.processed_image_stack[self.edited_image.image_stack_index], False, "")
+		else:
+			print("Nothing to undo")
+
+	def redoOperation(self):
+		if (self.edited_image.image_stack_index < len(self.edited_image.processed_image_stack) - 1):
+			# Can keep redoing
+			self.edited_image.image_stack_index += 1
+			self.edited_image.updateImage(self.edited_image.processed_image_stack[self.edited_image.image_stack_index], False, "")
+		else:
+			# Already at most recent element
+			print("Nothing to redo")
+
+	############### Operation History #############
+	class ToolHistory(Popup):
+		history_container = ObjectProperty()
+		def populate(self, historyArray):
+			# Clear history first
+			for i in range(len(self.history_container.children)):
+				self.history_container.remove_widget(self.history_container.children[0])
+
+			# Insert all of the history into the popup
+			for elem in historyArray:
+				newLabel = Label()
+				newLabel.text = elem
+				newLabel.font_size = 14
+				newLabel.size_hint = (1, None)
+				newLabel.height = 20
+				self.history_container.add_widget(newLabel)
+
 	############## Image info popup class #################
 	class ImageInfo(Popup):
 		imageShape = ObjectProperty()
@@ -129,23 +164,53 @@ class EditingScreen(Screen):
 		processed_image = None
 		status_text = ObjectProperty(None)
 
+		# When the user performs an operation on the image, save it into this array. 
+		processed_image_stack = []
+		processed_image_stack_commands = []
+		image_stack_index = -1
+
 		def __init(self, **kwargs):
 			super(EditedImage, self).__init__(**kwargs)
 		def setup(self):
 			if (self.parent.parent.parent.parent.image_filepath != ""):
+				# Reset the image stack and index
+				self.processed_image_stack = []
+				self.processed_image_stack_commands = []
+				self.image_stack_index = -1
+
 				# Read in the image. The image is read in flipped, so flip it back
 				self.orig_image = cv2.flip(cv2.imread(self.parent.parent.parent.parent.image_filepath), 0)
-				self.updateImage(self.orig_image)
+				self.updateImage(self.orig_image, True, "Loaded Image.")
 				self.status_text = self.parent.parent.parent.parent.status
+
+		# Show the operation history
+		def showHistory(self):
+			self.toolHistory = Factory.ToolHistory()
+			self.toolHistory.populate(self.processed_image_stack_commands)
+			self.toolHistory.open()
+
 		# Convert image to a string then to a texture and display on image canvas
 		@mainthread
-		def updateImage(self, im):
+		def updateImage(self, im, addToStack, cmd):
+			# Update the displayed image
 			self.processed_image = im
 			data = im.tostring()
 			image_texture = Texture.create(size=(im.shape[1], im.shape[0]), colorfmt='bgr')
 			image_texture.blit_buffer(data, colorfmt='bgr', bufferfmt='ubyte')
 			with self.canvas:
 				self.texture = image_texture
+
+			if (addToStack):
+				# Look at the image stack index. if it is at a position other than the end, then drop all images
+				# past the current index and then append the new image. Else, just append the image.
+				if (self.image_stack_index + 1 != len(self.processed_image_stack)):
+					while (self.image_stack_index + 1 < len(self.processed_image_stack)):
+						self.processed_image_stack.pop()
+						self.processed_image_stack_commands.pop()
+				# Then append the image onto the end, and update image_stack_index
+				self.processed_image_stack.append(self.processed_image)
+				self.processed_image_stack_commands.append(cmd)
+				self.image_stack_index = len(self.processed_image_stack) - 1
 
 		# Update status text with a thread
 		def updateStatusText(self, text):
@@ -174,7 +239,7 @@ class EditingScreen(Screen):
 					claheThread = threading.Thread(target=self.runCLAHE, args=(cl, adj, gs,))
 					claheThread.start()
 				else:
-					self.updateStatusText("Could not perform CLAHE. Values must be valid numbers.")
+					self.updateStatusText("Could not perform CLAHE. Grid size must be between 1 and 100.")
 
 		def blur(self, ks, alg):
 			if (ks != ""):
@@ -263,7 +328,7 @@ class EditingScreen(Screen):
 		def runCLAHE(self, cl, adj, gs):
 			# Process the inputs
 			clipLimit = float(cl) if float(cl) > 0.01 else 0.01
-			gridSize = int(gs) if int(gs) > 0 and int(gs) < 20 else 1
+			gridSize = int(gs) if int(gs) > 0 and int(gs) < 100 else 1
 			adjustment = float(adj)
 			image = cv2.cvtColor(self.orig_image, cv2.COLOR_BGR2LAB)
 			l, a, b = cv2.split(image)
@@ -273,7 +338,7 @@ class EditingScreen(Screen):
 			cl = clahe.apply(l)
 			image = cv2.merge((cl, a, b))
 			image = cv2.cvtColor(image, cv2.COLOR_LAB2BGR)
-			self.updateImage(image)
+			self.updateImage(image, True, "CLAHE: cl=" + str(clipLimit) + "adj=" + str(int(adj * 100)/100.0) + ", gridSize=(" + str(gs) + "," + str(gs) + ")")
 			self.setStatusReady()
 
 		# Blur. Parameters: kernel size and algorithm
@@ -288,7 +353,7 @@ class EditingScreen(Screen):
 				image = cv2.medianBlur(self.orig_image, kernelSize)
 			elif (alg == "Bilateral"):
 				image = cv2.bilateralFilter(self.orig_image, kernelSize, -1, -1)
-			self.updateImage(image)
+			self.updateImage(image, True, "Blur: ks=(" + ks + "," + ks + "), alg=" + alg)
 			self.setStatusReady()
 
 		# Color quantization. Optional blur before running the quantization, with numclusters=nc
@@ -307,7 +372,7 @@ class EditingScreen(Screen):
 			center = np.uint8(center)
 			quant = center[label.flatten()]
 			quant = quant.reshape((h,w,3))
-			self.updateImage(quant)
+			self.updateImage(quant, True, "Color Quantization: ks=(" + ks + "," + ks + "), nc=" + nc)
 			self.setStatusReady()
 
 		# Inpainting of details (ie. hair removal). Takes in a blur kernel size and a dilation size.
@@ -322,7 +387,7 @@ class EditingScreen(Screen):
 			dilationConv = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2*int(dil)+1, 2*int(dil)+1), (int(dil), int(dil)))
 			mask = cv2.dilate(thr, dilationConv, 1)
 			res = cv2.inpaint(image, mask, 3, cv2.INPAINT_TELEA)
-			self.updateImage(res)
+			self.updateImage(res, True, "Detail Inpainting: ks=(" + ks + ", " + ks + "), ds=" + dil)
 			self.setStatusReady()
 
 # Check to see if a text input is a number

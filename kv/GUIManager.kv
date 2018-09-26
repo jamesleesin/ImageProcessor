@@ -134,6 +134,48 @@ ScreenManager:
 		                	x: self.parent.x
 		                	y: self.parent.y
 		                	size: self.parent.size
+		            Button:
+			        	background_normal: 'kv/images/transparent_back.png'
+		                background_down: 'kv/images/transparent_back.png'
+		                on_press: history_button_image.source = "kv/images/history_icon.png"
+		                on_release: 
+		                	history_button_image.source = "kv/images/history_icon.png"
+	                		self.parent.parent.parent.parent.parent.edited_image.showHistory()
+		                Image:
+		                	id: history_button_image
+		                	source: "kv/images/history_icon.png"
+		                	allow_stretch: True
+		                	x: self.parent.x
+		                	y: self.parent.y
+		                	size: self.parent.size
+		            Button:
+			        	background_normal: 'kv/images/transparent_back.png'
+		                background_down: 'kv/images/transparent_back.png'
+		                on_press: undo_button_image.source = "kv/images/undo_icon.png"
+		                on_release: 
+		                	undo_button_image.source = "kv/images/undo_icon.png"
+	                		self.parent.parent.parent.parent.parent.undoOperation()
+		                Image:
+		                	id: undo_button_image
+		                	source: "kv/images/undo_icon.png"
+		                	allow_stretch: True
+		                	x: self.parent.x
+		                	y: self.parent.y
+		                	size: self.parent.size
+		            Button:
+			        	background_normal: 'kv/images/transparent_back.png'
+		                background_down: 'kv/images/transparent_back.png'
+		                on_press: savefile_button_image.source = "kv/images/redo_icon.png"
+		                on_release: 
+		                	redo_button_image.source = "kv/images/redo_icon.png"
+	                		self.parent.parent.parent.parent.parent.redoOperation()
+		                Image:
+		                	id: redo_button_image
+		                	source: "kv/images/redo_icon.png"
+		                	allow_stretch: True
+		                	x: self.parent.x
+		                	y: self.parent.y
+		                	size: self.parent.size
 				ScrollView:
 					scroll_type: ['bars']
 					size_hint: (0.96, 0.93) if self.parent.parent.parent.parent.image_filepath != "" else (0,0)
@@ -454,6 +496,7 @@ ScreenManager:
 		orientation: 'vertical'
 		FileChooserListView:
 			id: filechooser
+			path: "~/"
 		BoxLayout:
 			size_hint_y: None
 			height: 30
@@ -472,6 +515,7 @@ ScreenManager:
 		orientation: 'vertical'
 		FileChooserListView:
 			id: filechooser
+			path: "~/"
 			on_selection: text_input.text = self.selection and self.selection[0] or ''
 		TextInput:
 			id: text_input
@@ -487,6 +531,22 @@ ScreenManager:
 			Button:
 				text: "Save"
 				on_release: root.save(filechooser.path, text_input.text)
+
+<ToolHistory>:
+	title: 'History'
+	size_hint: (.6, .8)
+	history_container: history_container
+	ScrollView:
+		scroll_type: ['bars', 'content']
+		size_hint: (1, 0.95)
+		pos_hint: {'x': 0, 'y': 0}
+		GridLayout:
+			id: history_container
+			cols: 1
+			size_hint: (1, None)
+			height: self.minimum_height
+			spacing: 15
+			padding: 0, 20, 0, 20
 
 <ImageInfo>:
 	imageShape: image_shape_text
