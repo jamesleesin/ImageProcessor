@@ -19,3 +19,8 @@ Description: Perform a k-means clustering of the image colors. Can optionally pe
 <b>Detail Inpainting:</b>  
 Parameters: Blur Kernel Size, Dilation size  
 Description: Creates a mask from the image details, and the INPAINT_TELEA algorithm to fill in the blanks. https://docs.opencv.org/3.4.0/df/d3d/tutorial_py_inpainting.html  
+
+
+![Example of Color Quantization](imageprocessor1.png)
+![Image Information](imageprocessor2.png)
+![Example of CLAHE algorithm](imageprocessor3.png)
